@@ -2,25 +2,27 @@ from __future__ import print_function
 
 import datetime
 import os.path
-import pickle
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import os
-import time
 import pyttsx3
 import speech_recognition as sr
 import pytz
 import subprocess
 from googlesearch import search
+import platform
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+DAY_TRIGGERS=["day is it"]
+DATE_TRIGGERS=["is the date","date is it"]
+TIME_TRIGGERS=["what is the time","give me the time","the time"]
 BOT_TRIGGERS = ["hello", "hey", "hi","how are you"]
-TERMINATE_TRIGGERS = ["shut down","close process","terminate"]
+TERMINATE_TRIGGERS = ["shutdown","close process","terminate", "close","quit"]
 SEARCH_TRIGGERS = ["google","search for","look for"]
-NOTE_TRIGGERS = ["take a note","open note","notepad","write","remember"]
+NOTE_TRIGGERS = ["take a note","open note","notepad","write","remember","note"]
 CALENDAR_TRIGGERS = ["what do i have","schedule","plans","what am i doing","am i busy","am i free","what i have"]
 MONTHS = ["january","february","march","april","may","june","july","august","september","october","november","december"]
 DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
@@ -42,7 +44,7 @@ def get_audio():
             said= r.recognize_google(audio)
             print(said)
         except Exception as e:
-            print("Exception: "+str(e))
+            print("")
     return said
 
 
@@ -106,6 +108,16 @@ def get_events(day,service):
         speak(event["summmary"]+" at "+start_time)
 
 
+def get_the_time():
+    now = datetime.datetime.now()
+    current_time = now.strftime("%H:%M")
+    return current_time
+
+def get_the_day():
+    today=datetime.datetime.today()
+    day = today.weekday()
+    return DAYS[day] 
+
 
 def get_date(text):
     text=text.lower()
@@ -155,14 +167,17 @@ def get_date(text):
     return datetime.date(day=day,month=month,year=year)
 
 
-def get_note():
+def get_note(sys_flag):
     date=datetime.datetime.now()
     file_name = str(date).replace(":","-")+"-note.txt"
     speak("What would you like me to take a note of?")
     note=get_audio().lower()
     with open(file_name,"w") as f:
-        f.write(note)
-    subprocess.Popen(["notepad.exe",file_name])
+        f.write(note)    
+    if sys_flag==0:
+        subprocess.Popen(["notepad.exe",file_name])
+    else:
+        subprocess.Popen(["/Applications/TextEdit.app/Contents/MacOS/TextEdit",file_name])
 
 
 def make_search():
@@ -173,10 +188,13 @@ def make_search():
         print(i)
 
 
+sys_flag=0
+op_sys=platform.platform()
+if "mac" in op_sys:
+    sys_flag=1
 SERVICE = authenticate_google()
 speak("How can I help you")
 text = get_audio().lower()
-
 while True:
 
     for phrase in CALENDAR_TRIGGERS:
@@ -192,9 +210,13 @@ while True:
             speak("i did not quite get that.")
 
 
+    for phrase in TIME_TRIGGERS:
+        if phrase in text:
+            speak(get_the_time())
+
     for phrase in NOTE_TRIGGERS:
         if phrase in text:
-            get_note()
+            get_note(sys_flag)
             speak("i made a note of that.")
             break
 
@@ -203,6 +225,22 @@ while True:
             make_search()
             break
     
+    for phrase in DAY_TRIGGERS:
+        if phrase in text:
+            speak("it is")
+            speak(get_the_day())
+    
+    for phrase in DATE_TRIGGERS:
+        if phrase in text:
+            speak("it is")
+            now = datetime.datetime.now()
+            day = now.strftime("%d")
+            speak(day)
+            month = int(now.strftime("%m"))
+            speak(MONTHS[month-1])
+            year = now.strftime("%Y")
+            speak(year)
+
     for phrase in TERMINATE_TRIGGERS:
         if phrase in text:
             quit()
