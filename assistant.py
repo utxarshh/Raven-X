@@ -12,50 +12,52 @@ import pyttsx3
 import speech_recognition as sr
 import pytz
 import subprocess
-import openai
-import warnings
 from googlesearch import search
 import platform
-import cv2
+import warnings
+import openai
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+import random
+import requests
 
 
 warnings.filterwarnings('ignore')
-openai.api_key='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'
+openai.api_key='Enter own'
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-DAY_TRIGGERS=["day is it","what is the day"]
+DAY_TRIGGERS=["day is it"]
 DATE_TRIGGERS=["is the date","date is it"]
 TIME_TRIGGERS=["what is the time","give me the time","the time"]
 BOT_TRIGGERS = ["hello", "hey", "hi","how are you"]
-TERMINATE_TRIGGERS = ["shutdown","close process","terminate", "close","quit","fuck off"]
+TERMINATE_TRIGGERS = ["shutdown","close process","terminate", "close","quit", "okay", "thank you"]
 SEARCH_TRIGGERS = ["google","search for","look for"]
-CLICK_TRIGGERS= ["take a picture","a photo","a picture","a selfie"]
 NOTE_TRIGGERS = ["take a note","open note","notepad","write","remember","note"]
 CALENDAR_TRIGGERS = ["what do i have","schedule","plans","what am i doing","am i busy","am i free","what i have"]
 MONTHS = ["january","february","march","april","may","june","july","august","september","october","november","december"]
 DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
+SPOTIFY_TRIGGERS = ["play", "listen to", "stream", "start","spotify","song"]
+WEATHER_TRIGGERS = ["weather", "temperature", "wind", "climate"]
 DAY_EXTENSIONS = ["st","nd","rd","th"]
 asked_for_calendar=0
+#message list to pass to openai model
 messages = [{"role": "system", "content": 'You are a useful virtual assistant. Act as if you were a good helpful friend'}]
 
 def ask_gpt(text):
     prompt = f"{text}"
-    response = openai.Completion.create(
-        engine="text-davinci-003",
+    response = openai.ChatCompletion.create(
+        model="text-davinci-003",
         prompt=prompt,
-        temperature=0.1,
-        max_tokens=1024,
-        n=1,
-        stop=None,
-        frequency_penalty=0,
-        presence_penalty=0
+        temperature=0.5,
+        max_tokens=60,
+        top_p=0.3,
+        frequency_penalty=0.5,
+        presence_penalty=0.0
     )
-    messages.append({'role':'user','content':text})
     system_message = response["choices"][0]["text"]
     messages.append(system_message)
-    print(str(system_message))
+    print(system_message)
     speak(str(system_message))
-    return 
 
 def speak(text):
     engine=pyttsx3.init()
@@ -136,72 +138,15 @@ def get_events(day,service):
         speak(event["summmary"]+" at "+start_time)
 
 
-def take_a_picture():
-    key = cv2. waitKey(1)
-    webcam = cv2.VideoCapture(0)
-    while True:
-        try:
-            frame = webcam.read()
-            cv2.imshow("Capturing", frame)
-            key = cv2.waitKey(1)
-            date=datetime.datetime.now()
-            file_name = str(date).replace(":","-")+"-image.jpg"
-            if key == ord('s'):
-                speak("captured")
-                cv2.imwrite(filename='saved_img.jpg', img=frame)
-                webcam.release()
-                img_new = cv2.imread('saved_img.jpg', cv2.IMREAD_GRAYSCALE)
-                img_new = cv2.imshow("Captured Image", img_new)
-                cv2.waitKey(1650)
-                cv2.destroyAllWindows()
-                print("Processing image...")
-                img_ = cv2.imread('saved_img.jpg', cv2.IMREAD_ANYCOLOR)
-                print("Converting RGB image to grayscale...")
-                gray = cv2.cvtColor(img_, cv2.COLOR_BGR2GRAY)
-                print("Converted RGB image to grayscale...")
-                print("Resizing image to 28x28 scale...")
-                img_ = cv2.resize(gray,(28,28))
-                print("Resized...")
-                img_resized = cv2.imwrite(filename=file_name, img=img_)
-                print("Image saved!")           
-                break
-            elif key == ord('q'):
-                speak("turning off")
-                print("Turning off camera.")
-                webcam.release()
-                print("Camera off.")
-                print("Program ended.")
-                cv2.destroyAllWindows()
-                break
-            
-        except(KeyboardInterrupt):
-            print("Turning off camera.")
-            webcam.release()
-            print("Camera off.")
-            print("Program ended.")
-            cv2.destroyAllWindows()
-            break
-
-
 def get_the_time():
     now = datetime.datetime.now()
-    hour = int(now.strftime("%H"))
-    min = int(now.strftime("%M"))
-    str1 = "am"
-    if hour>=12:
-        str1 = "pm"
-        hour-=12
-    if hour==0:
-        hour=12
-    str1 = (f"it is {hour}:{min} {str1}")
-    return str1
+    current_time = now.strftime("%H:%M")
+    return current_time
 
 def get_the_day():
     today=datetime.datetime.today()
     day = today.weekday()
-    return f"it is {DAYS[day]}" 
-
-
+    return DAYS[day] 
 
 
 def get_date(text):
@@ -272,19 +217,66 @@ def make_search():
     for i in search(query,tld='com',num=10, stop=10,pause=2):
         print(i)
 
+def play_music(track_name):
+    for trigger in SPOTIFY_TRIGGERS:
+        track_name = track_name.replace(f'{trigger}','')
+    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="Enter own",
+                                                   client_secret="Enter own",
+                                                   redirect_uri="http://localhost:8000",
+                                                   scope="user-read-playback-state,user-modify-playback-state"))
+    results = sp.search(q=track_name, type='track')
+    if results['tracks']['items']:
+        speak(f"now playing {track_name}")
+        track_uri = results['tracks']['items'][0]['uri']
+        sp.start_playback(uris=[track_uri])
+        print(f"Now playing: {results['tracks']['items'][0]['name']} by {results['tracks']['items'][0]['artists'][0]['name']}")
+    else:
+        print(f"No tracks found matching the name {track_name}")
+
+
+def get_weather():
+    # set up API endpoint and parameters
+    url = "https://api.openweathermap.org/data/2.5/weather"
+    params = {
+        "q": "Bhubaneswar, Odisha",
+        "appid": "Enter own",
+        "units": "metric"
+    }
+    
+    # send GET request to API endpoint
+    response = requests.get(url, params=params)
+    
+    # check if response is successful (status code 200)
+    if response.status_code == 200:
+        # extract weather information from response JSON
+        data = response.json()
+        description = data["weather"][0]["description"]
+        temperature = data["main"]["temp"]
+        feels_like = data["main"]["feels_like"]
+        humidity = data["main"]["humidity"]
+        wind_speed = data["wind"]["speed"]
+        
+        # format and return weather information as text
+        weather_text = f"The current weather in Bhubaneswar, Odisha is {description}, with a temperature of {temperature:.1f}°C (feels like {feels_like:.1f}°C), humidity of {humidity}% and wind speed of {wind_speed} meter per second."
+        speak(weather_text)
+    else:
+        # print error message with status code and reason
+        error_text = f"HTTP Error {response.status_code}: {response.reason}"
+        print(error_text)
+        speak("Sorry, I couldn't retrieve the weather information at this time.")
 
 sys_flag=0
 op_sys=platform.platform()
 if "mac" in op_sys:
     sys_flag=1
 SERVICE = authenticate_google()
-print("How can i help you")
 speak("How can I help you")
 text = get_audio().lower()
 while True:
-
+    triggered=0
     for phrase in CALENDAR_TRIGGERS:
         if phrase in text:
+            triggered=1
             asked_for_calendar=1
             break
     if asked_for_calendar==1:
@@ -296,66 +288,45 @@ while True:
             speak("i did not quite get that.")
 
 
-    for phrase in TIME_TRIGGERS:
-        if phrase in text:
-            time_is=get_the_time()
-            print(time_is)
-            speak(time_is)
-            break
-
     for phrase in NOTE_TRIGGERS:
         if phrase in text:
+            triggered=1
             get_note(sys_flag)
             speak("i made a note of that.")
             break
 
     for phrase in SEARCH_TRIGGERS:
         if phrase in text:
+            triggered=1
             make_search()
             break
     
-    for phrase in DAY_TRIGGERS:
+    for phrase in WEATHER_TRIGGERS:
         if phrase in text:
-            day_is=get_the_day()
-            print(day_is)
-            speak(day_is)
-            break
-    
-    for phrase in DATE_TRIGGERS:
-        if phrase in text:
-            speak("it is")
-            now = datetime.datetime.now()
-            day = int(now.strftime("%d"))
-            speak(day)
-            month = int(now.strftime("%m"))
-            speak(MONTHS[month-1 ])
-            year = now.strftime("%Y")
-            speak(year)
-            print(f"it is {day} {MONTHS[month-1]} {year}")
+            get_weather()
             break
 
     for phrase in BOT_TRIGGERS:
         if phrase in text:
             ask_gpt(text)
             break
-
-
-    for phrase in CLICK_TRIGGERS:
+    for phrase in SPOTIFY_TRIGGERS:
         if phrase in text:
-            take_a_picture()
+            subprocess.Popen(["spotify.exe"])
+            play_music(text)
             break
-
-
     for phrase in TERMINATE_TRIGGERS:
         if phrase in text:
-            if "fuck" in text:
-                print("Fucking off")
-                speak("Fucking off")
-                quit()
-            else:
-                print("Shutting down")
-                speak("shutting down")
-                quit()
+            quit()
+    
 
-    speak("i'm listening.")
-    text = get_audio().lower()
+    listening_prompts = ["I'm all ears.","Listening carefully.","I'm here, what can I help you with?","Go ahead, I'm listening.","What would you like to ask me?","Speak your mind, I'm listening.","Tell me what's on your mind.","I'm ready when you are.","How can I assist you?","I'm here to listen.","Raven is waiting for you, speak up"]
+
+    # start listening loop
+    while True:
+        # select a random listening prompt from the list
+        prompt = random.choice(listening_prompts)
+        speak(prompt)
+
+        
+        text = get_audio().lower()
