@@ -12,22 +12,51 @@ import pyttsx3
 import speech_recognition as sr
 import pytz
 import subprocess
+import openai
+import warnings
 from googlesearch import search
 import platform
+import cv2
+
+
+warnings.filterwarnings('ignore')
+openai.api_key='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'
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-DAY_TRIGGERS=["day is it"]
+SPOTIFY_TRIGGERS = ["play", "listen to", "stream", "start","spotify","song"]
+DAY_TRIGGERS=["day is it","what is the day"]
 DATE_TRIGGERS=["is the date","date is it"]
 TIME_TRIGGERS=["what is the time","give me the time","the time"]
 BOT_TRIGGERS = ["hello", "hey", "hi","how are you"]
-TERMINATE_TRIGGERS = ["shutdown","close process","terminate", "close","quit"]
+TERMINATE_TRIGGERS = ["shutdown","close process","terminate", "close","quit","fuck off"]
 SEARCH_TRIGGERS = ["google","search for","look for"]
+CLICK_TRIGGERS= ["take a picture","a photo","a picture","a selfie"]
 NOTE_TRIGGERS = ["take a note","open note","notepad","write","remember","note"]
 CALENDAR_TRIGGERS = ["what do i have","schedule","plans","what am i doing","am i busy","am i free","what i have"]
 MONTHS = ["january","february","march","april","may","june","july","august","september","october","november","december"]
 DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
 DAY_EXTENSIONS = ["st","nd","rd","th"]
 asked_for_calendar=0
+messages = [{"role": "system", "content": 'You are a useful virtual assistant. Act as if you were a good helpful friend'}]
+
+def ask_gpt(text):
+    prompt = f"{text}"
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        temperature=0.1,
+        max_tokens=1024,
+        n=1,
+        stop=None,
+        frequency_penalty=0,
+        presence_penalty=0
+    )
+    messages.append({'role':'user','content':text})
+    system_message = response["choices"][0]["text"]
+    messages.append(system_message)
+    print(str(system_message))
+    speak(str(system_message))
+    return 
 
 def speak(text):
     engine=pyttsx3.init()
@@ -108,15 +137,72 @@ def get_events(day,service):
         speak(event["summmary"]+" at "+start_time)
 
 
+def take_a_picture():
+    key = cv2. waitKey(1)
+    webcam = cv2.VideoCapture(0)
+    while True:
+        try:
+            frame = webcam.read()
+            cv2.imshow("Capturing", frame)
+            key = cv2.waitKey(1)
+            date=datetime.datetime.now()
+            file_name = str(date).replace(":","-")+"-image.jpg"
+            if key == ord('s'):
+                speak("captured")
+                cv2.imwrite(filename='saved_img.jpg', img=frame)
+                webcam.release()
+                img_new = cv2.imread('saved_img.jpg', cv2.IMREAD_GRAYSCALE)
+                img_new = cv2.imshow("Captured Image", img_new)
+                cv2.waitKey(1650)
+                cv2.destroyAllWindows()
+                print("Processing image...")
+                img_ = cv2.imread('saved_img.jpg', cv2.IMREAD_ANYCOLOR)
+                print("Converting RGB image to grayscale...")
+                gray = cv2.cvtColor(img_, cv2.COLOR_BGR2GRAY)
+                print("Converted RGB image to grayscale...")
+                print("Resizing image to 28x28 scale...")
+                img_ = cv2.resize(gray,(28,28))
+                print("Resized...")
+                img_resized = cv2.imwrite(filename=file_name, img=img_)
+                print("Image saved!")           
+                break
+            elif key == ord('q'):
+                speak("turning off")
+                print("Turning off camera.")
+                webcam.release()
+                print("Camera off.")
+                print("Program ended.")
+                cv2.destroyAllWindows()
+                break
+            
+        except(KeyboardInterrupt):
+            print("Turning off camera.")
+            webcam.release()
+            print("Camera off.")
+            print("Program ended.")
+            cv2.destroyAllWindows()
+            break
+
+
 def get_the_time():
     now = datetime.datetime.now()
-    current_time = now.strftime("%H:%M")
-    return current_time
+    hour = int(now.strftime("%H"))
+    min = int(now.strftime("%M"))
+    str1 = "am"
+    if hour>=12:
+        str1 = "pm"
+        hour-=12
+    if hour==0:
+        hour=12
+    str1 = (f"it is {hour}:{min} {str1}")
+    return str1
 
 def get_the_day():
     today=datetime.datetime.today()
     day = today.weekday()
-    return DAYS[day] 
+    return f"it is {DAYS[day]}" 
+
+
 
 
 def get_date(text):
@@ -193,6 +279,7 @@ op_sys=platform.platform()
 if "mac" in op_sys:
     sys_flag=1
 SERVICE = authenticate_google()
+print("How can i help you")
 speak("How can I help you")
 text = get_audio().lower()
 while True:
@@ -212,7 +299,10 @@ while True:
 
     for phrase in TIME_TRIGGERS:
         if phrase in text:
-            speak(get_the_time())
+            time_is=get_the_time()
+            print(time_is)
+            speak(time_is)
+            break
 
     for phrase in NOTE_TRIGGERS:
         if phrase in text:
@@ -227,23 +317,51 @@ while True:
     
     for phrase in DAY_TRIGGERS:
         if phrase in text:
-            speak("it is")
-            speak(get_the_day())
+            day_is=get_the_day()
+            print(day_is)
+            speak(day_is)
+            break
     
     for phrase in DATE_TRIGGERS:
         if phrase in text:
             speak("it is")
             now = datetime.datetime.now()
-            day = now.strftime("%d")
+            day = int(now.strftime("%d"))
             speak(day)
             month = int(now.strftime("%m"))
-            speak(MONTHS[month-1])
+            speak(MONTHS[month-1 ])
             year = now.strftime("%Y")
             speak(year)
+            print(f"it is {day} {MONTHS[month-1]} {year}")
+            break
+
+    for phrase in BOT_TRIGGERS:
+        if phrase in text:
+            ask_gpt(text)
+            break
+
+    # for phrase in SPOTIFY_TRIGGERS:
+    #     if phrase in text:
+    #         play_music(text)
+    #         break
+
+
+    for phrase in CLICK_TRIGGERS:
+        if phrase in text:
+            take_a_picture()
+            break
+
 
     for phrase in TERMINATE_TRIGGERS:
         if phrase in text:
-            quit()
+            if "fuck" in text:
+                print("Fucking off")
+                speak("Fucking off")
+                quit()
+            else:
+                print("Shutting down")
+                speak("shutting down")
+                quit()
 
     speak("i'm listening.")
     text = get_audio().lower()
