@@ -23,7 +23,6 @@ warnings.filterwarnings('ignore')
 openai.api_key='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'
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-SPOTIFY_TRIGGERS = ["play", "listen to", "stream", "start","spotify","song"]
 DAY_TRIGGERS=["day is it","what is the day"]
 DATE_TRIGGERS=["is the date","date is it"]
 TIME_TRIGGERS=["what is the time","give me the time","the time"]
@@ -339,11 +338,6 @@ while True:
         if phrase in text:
             ask_gpt(text)
             break
-
-    # for phrase in SPOTIFY_TRIGGERS:
-    #     if phrase in text:
-    #         play_music(text)
-    #         break
 
 
     for phrase in CLICK_TRIGGERS:
