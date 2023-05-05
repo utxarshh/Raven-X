@@ -27,7 +27,7 @@ DAY_TRIGGERS=["day is it","what is the day"]
 DATE_TRIGGERS=["is the date","date is it"]
 TIME_TRIGGERS=["what is the time","give me the time","the time"]
 BOT_TRIGGERS = ["hello", "hey", "hi","how are you"]
-TERMINATE_TRIGGERS = ["shutdown","close process","terminate", "close","quit","fuck off"]
+TERMINATE_TRIGGERS = ["shutdown","close process","terminate", "close","quit"]
 SEARCH_TRIGGERS = ["google","search for","look for"]
 CLICK_TRIGGERS= ["take a picture","a photo","a picture","a selfie"]
 NOTE_TRIGGERS = ["take a note","open note","notepad","write","remember","note"]
@@ -348,14 +348,9 @@ while True:
 
     for phrase in TERMINATE_TRIGGERS:
         if phrase in text:
-            if "fuck" in text:
-                print("Fucking off")
-                speak("Fucking off")
-                quit()
-            else:
-                print("Shutting down")
-                speak("shutting down")
-                quit()
+            speak("shutting down")
+            print("Shutting downn")
+            quit()
 
     speak("i'm listening.")
     text = get_audio().lower()
