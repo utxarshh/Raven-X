@@ -16,6 +16,7 @@ from googlesearch import search
 import platform
 import warnings
 import openai
+import cv2
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import random
@@ -39,9 +40,8 @@ DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
 SPOTIFY_TRIGGERS = ["play", "listen to", "stream", "start","spotify","song"]
 WEATHER_TRIGGERS = ["weather", "temperature", "wind", "climate"]
 DAY_EXTENSIONS = ["st","nd","rd","th"]
-asked_for_calendar=0
-#message list to pass to openai model
 messages = [{"role": "system", "content": 'You are a useful virtual assistant. Act as if you were a good helpful friend'}]
+asked_for_calendar=0
 
 def ask_gpt(text):
     prompt = f"{text}"
@@ -136,6 +136,52 @@ def get_events(day,service):
             start_time = start_time+"pm"
         
         speak(event["summmary"]+" at "+start_time)
+        
+def take_a_picture():
+    key = cv2. waitKey(1)
+    webcam = cv2.VideoCapture(0)
+    while True:
+        try:
+            frame = webcam.read()
+            cv2.imshow("Capturing", frame)
+            key = cv2.waitKey(1)
+            date=datetime.datetime.now()
+            file_name = str(date).replace(":","-")+"-image.jpg"
+            if key == ord('s'):
+                speak("captured")
+                cv2.imwrite(filename='saved_img.jpg', img=frame)
+                webcam.release()
+                img_new = cv2.imread('saved_img.jpg', cv2.IMREAD_GRAYSCALE)
+                img_new = cv2.imshow("Captured Image", img_new)
+                cv2.waitKey(1650)
+                cv2.destroyAllWindows()
+                print("Processing image...")
+                img_ = cv2.imread('saved_img.jpg', cv2.IMREAD_ANYCOLOR)
+                print("Converting RGB image to grayscale...")
+                gray = cv2.cvtColor(img_, cv2.COLOR_BGR2GRAY)
+                print("Converted RGB image to grayscale...")
+                print("Resizing image to 28x28 scale...")
+                img_ = cv2.resize(gray,(28,28))
+                print("Resized...")
+                img_resized = cv2.imwrite(filename=file_name, img=img_)
+                print("Image saved!")           
+                break
+            elif key == ord('q'):
+                speak("turning off")
+                print("Turning off camera.")
+                webcam.release()
+                print("Camera off.")
+                print("Program ended.")
+                cv2.destroyAllWindows()
+                break
+            
+        except(KeyboardInterrupt):
+            print("Turning off camera.")
+            webcam.release()
+            print("Camera off.")
+            print("Program ended.")
+            cv2.destroyAllWindows()
+            break
 
 
 def get_the_time():
