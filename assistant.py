@@ -358,7 +358,6 @@ while True:
             break
     for phrase in SPOTIFY_TRIGGERS:
         if phrase in text:
-            subprocess.Popen(["spotify.exe"])
             play_music(text)
             break
     for phrase in TERMINATE_TRIGGERS:
